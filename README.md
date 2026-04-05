@@ -78,11 +78,3 @@ The project uses **Off-Policy Evaluation (OPE)**:
 
 ---
 
-## 🛠️ Tech Stack
-
-- Python 3.7.11  
-- NumPy 1.19.5  
-- scikit-learn 0.23.1  
-- Matplotlib 3.2.2  
-
----
