@@ -1,4 +1,14 @@
+**Course:** EE 216 Machine Learning for Signal Processing
 # 🎯 Multi-Armed Bandits for Recommendation Systems
+ 👥 Team Members
+
+**Course:** EE 216 Machine Learning for Signal Processing
+
+| Name                   | Roll Number |
+|------------------------|-------------|
+| Akarsh J              | 240002007   |
+| Ninad Atul Kulkarni   | 240002032   |
+
 
 ## 📌 Overview
 
