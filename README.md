@@ -1,5 +1,5 @@
-**Course:** EE 216 Machine Learning for Signal Processing
-# 🎯 Multi-Armed Bandits for Recommendation Systems
+# Course: EE 216 Machine Learning for Signal Processing
+## 🎯 Multi-Armed Bandits for Recommendation Systems
  👥 Team Members
 
 **Course:** EE 216 Machine Learning for Signal Processing
@@ -10,13 +10,13 @@
 | Ninad Atul Kulkarni   | 240002032   |
 
 
-## 📌 Overview
+### 📌 Overview
 
 This project implements a range of **Multi-Armed Bandit (MAB)** algorithms for recommendation systems, covering both **classical** and **contextual** approaches. The goal is to simulate and evaluate how different bandit strategies perform in a recommendation setting, such as news article recommendation, where decisions are sequential and feedback is limited.
 
 ---
 
-## 🧠 Background
+### 🧠 Background
 
 Multi-Armed Bandits (MABs) are a framework for **sequential decision-making under uncertainty**, balancing:
 
@@ -63,7 +63,7 @@ The dataset `data.txt` contains **10,000 user interaction events**. Each instanc
 
 ---
 
-## ⚙️ Implemented Algorithms
+### ⚙️ Implemented Algorithms
 
 ### 🟢 Basic MAB Algorithms
 
