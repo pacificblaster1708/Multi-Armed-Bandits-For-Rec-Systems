@@ -2,7 +2,6 @@
 ## 🎯 Multi-Armed Bandits for Recommendation Systems
  👥 Team Members
 
-**Course:** EE 216 Machine Learning for Signal Processing
 
 | Name                   | Roll Number |
 |------------------------|-------------|
