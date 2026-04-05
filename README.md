@@ -44,7 +44,7 @@ The objective is to maximize cumulative reward, i.e., **click-through rate (CTR)
 
 ## 📂 Dataset
 
-The dataset `dataset.txt` contains **10,000 user interaction events**. Each instance includes:
+The dataset `data.txt` contains **10,000 user interaction events**. Each instance includes:
 
 | Column | Description |
 |--------|------------|
