@@ -288,7 +288,7 @@ The system successfully learned these preference distributions and incorporated 
 
 ### 6. User Session Summaries
 
-![User Sessions]Readme_Images/result_user_summary.png)
+![User Sessions](Readme_Images/result_user_summary.png)
 
 **User A (Akarsh):**
 - Sessions: 3 | Interactions: 118 | CTR: 62.7%
