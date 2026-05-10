@@ -12,22 +12,7 @@
 
 </div>
 
----
 
-## 📖 Table of Contents
-
-1. [Project Journey](#-project-journey)
-2. [Phase 1 — Classical MAB Foundations](#-phase-1--classical-mab-foundations-ee-216-assignment)
-3. [Phase 2 — BanditBeats: Implementing the DeepMind Paper](#-phase-2--banditbeats-implementing-the-deepmind-paper)
-4. [System Architecture](#-system-architecture)
-5. [Online Training Pipeline](#-online-training-pipeline)
-6. [Key Algorithm: Diag-LinUCB](#-key-algorithm-diag-linucb)
-7. [Installation & Running](#-installation--running)
-8. [API Reference](#-api-reference)
-9. [Results & Metrics](#-results--metrics)
-10. [Paper Citation](#-paper-citation)
-
----
 
 ## 🗺 Project Journey
 
