@@ -131,7 +131,7 @@ The DeepMind paper solves this by:
 
 > The diagram below shows the full layered architecture from user browser to bandit algorithm. Commit `banditbeats_system_architecture.svg` to your repo and it will render natively on GitHub.
 
-![BanditBeats System Architecture](banditbeats_system_architecture.svg)
+![BanditBeats System Architecture](Readme_Images/banditbeats_system_architecture.svg)
 
 **Layer breakdown (top to bottom):**
 
@@ -147,7 +147,7 @@ The DeepMind paper solves this by:
 
 > The diagram below shows how the offline initialization feeds into real-time closed-loop learning.
 
-![BanditBeats Online Training Flow](banditbeats_online_training_flow.svg)
+![BanditBeats Online Training Flow](Readme_Images/banditbeats_online_training_flow.svg)
 
 **Two-phase structure:**
 
