@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BanditBeats — Diag-LinUCB Music Recommender</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #111118;
+    --card2: #16161f;
+    --border: #1e1e2e;
+    --purple: #7c3aed;
+    --purple-light: #a78bfa;
+    --blue: #2563eb;
+    --green: #10b981;
+    --pink: #ec4899;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr 340px;
+    grid-template-rows: 100vh;
+    height: 100vh;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     LEFT SIDEBAR
+  ═══════════════════════════════════════════════════════════════════════════ */
+  .sidebar {
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(124,58,237,0.15) 0%, rgba(37,99,235,0.05) 100%);
+  }
+
+  .logo-title {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sidebar-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  /* User card */
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4);
+  }
+
+  .user-info .user-id {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .user-info .user-status {
+    font-size: 10px;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .user-info .user-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Algorithm selector */
+  .algo-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .algo-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+  }
+
+  .algo-btn:hover {
+    background: rgba(124,58,237,0.1);
+    color: var(--text);
+    border-color: rgba(124,58,237,0.3);
+  }
+
+  .algo-btn.active {
+    background: rgba(124,58,237,0.2);
+    color: #a78bfa;
+    border-color: rgba(124,58,237,0.5);
+  }
+
+  .algo-btn .algo-icon { font-size: 16px; }
+
+  .algo-badge {
+    margin-left: auto;
+    font-size: 9px;
+    background: var(--purple);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+
+  /* Alpha slider */
+  .slider-container { }
+  .slider-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .slider-label { font-size: 12px; color: var(--text-dim); }
+  .slider-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--purple-light);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--purple);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(124,58,237,0.5);
+  }
+
+  /* Cluster weights */
+  .cluster-list { display: flex; flex-direction: column; gap: 8px; }
+  .cluster-item { }
+  .cluster-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .cluster-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .cluster-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* Recent interactions */
+  .recent-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--card2);
+    border-radius: 8px;
+    font-size: 11px;
+  }
+
+  .recent-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .recent-info { flex: 1; min-width: 0; }
+  .recent-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-action { color: var(--text-muted); font-size: 10px; }
+  .recent-reward {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     MAIN AREA
+  ═══════════════════════════════════════════════════════════════════════════ */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  /* Now Playing */
+  .now-playing {
+    margin: 20px;
+    border-radius: 20px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    min-height: 200px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .now-playing-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.15;
+    transition: background 0.5s ease;
+  }
+
+  .now-playing-border {
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .album-art-wrapper {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .album-art {
+    width: 140px;
+    height: 140px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transition: background 0.5s ease;
+  }
+
+  .playing-ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 24px;
+    border: 2px solid transparent;
+    background: linear-gradient(45deg, var(--purple), var(--blue), var(--pink), var(--purple)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    animation: ring-rotate 4s linear infinite;
+  }
+
+  @keyframes ring-rotate {
+    from { filter: hue-rotate(0deg); }
+    to { filter: hue-rotate(360deg); }
+  }
+
+  .np-info { flex: 1; z-index: 1; }
+  .np-status {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--green);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .np-status::before {
+    content: '';
+    display: flex;
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse-dot 1.5s infinite;
+  }
+
+  .np-title {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .np-artist {
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .np-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .genre-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .np-album { font-size: 12px; color: var(--text-muted); }
+
+  /* Audio bars animation */
+  .audio-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 30px;
+    margin-bottom: 16px;
+  }
+
+  .audio-bar {
+    width: 4px;
+    background: var(--purple-light);
+    border-radius: 2px;
+    animation: bar-bounce var(--duration, 0.8s) ease-in-out infinite alternate;
+  }
+
+  @keyframes bar-bounce {
+    from { height: 4px; }
+    to { height: var(--height, 20px); }
+  }
+
+  /* Progress bar */
+  .progress-container { margin-bottom: 16px; }
+  .progress-bar-bg {
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+    border-radius: 2px;
+    transition: width 0.1s linear;
+  }
+  .progress-times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .ctrl-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .ctrl-btn:hover {
+    background: rgba(255,255,255,0.15);
+    transform: scale(1.05);
+  }
+
+  .ctrl-btn.primary {
+    width: 50px;
+    height: 50px;
+    background: var(--purple);
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4);
+  }
+
+  .ctrl-btn.primary:hover {
+    background: #6d28d9;
+    box-shadow: 0 0 30px rgba(124,58,237,0.6);
+  }
+
+  .ctrl-btn.like { color: var(--pink); }
+  .ctrl-btn.like:hover { background: rgba(236,72,153,0.2); }
+
+  /* UCB explanation */
+  .ucb-panel {
+    margin: 0 20px 16px;
+    padding: 16px 20px;
+    background: var(--card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .ucb-panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ucb-formula {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    font-family: 'Courier New', monospace;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .ucb-decomp {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .ucb-term {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .ucb-term-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .ucb-term-value {
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  .exploitation-term { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
+  .exploitation-term .ucb-term-value { color: var(--green); }
+
+  .exploration-term { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
+  .exploration-term .ucb-term-value { color: var(--yellow); }
+
+  /* Recommendations grid */
+  .recs-section { padding: 0 20px 20px; }
+
+  .recs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .recs-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .recs-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--purple);
+    color: var(--purple-light);
+  }
+
+  .recs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  .song-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .song-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, var(--card-accent, rgba(124,58,237,0.05)) 100%);
+    pointer-events: none;
+  }
+
+  .song-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(124,58,237,0.3);
+    border-color: rgba(124,58,237,0.4);
+  }
+
+  .song-card.active {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 1px var(--purple), 0 16px 40px rgba(124,58,237,0.2);
+  }
+
+  .card-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .badge-explore {
+    background: rgba(245,158,11,0.85);
+    color: #000;
+  }
+
+  .badge-exploit {
+    background: rgba(16,185,129,0.85);
+    color: #000;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .card-artist {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-genre-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .ucb-score-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--purple-light);
+    background: rgba(124,58,237,0.15);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+  }
+
+  .loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 3px solid var(--border);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 20px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 2000;
+    transition: transform 0.3s ease;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); }
+  .toast.warning { border-color: var(--yellow); }
+  .toast.error { border-color: var(--red); }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     RIGHT PANEL
+  ═══════════════════════════════════════════════════════════════════════════ */
+  .right-panel {
+    background: var(--card);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Metrics cards */
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .metric-card {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent, var(--purple));
+  }
+
+  .metric-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent, var(--purple-light));
+  }
+
+  .metric-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Charts */
+  .chart-container { position: relative; height: 140px; margin-top: 4px; }
+  .chart-sm { height: 100px; }
+
+  /* UCB top items */
+  .ucb-bars { display: flex; flex-direction: column; gap: 8px; }
+
+  .ucb-bar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .ucb-bar-rank {
+    width: 18px;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .ucb-bar-info { flex: 1; min-width: 0; }
+  .ucb-bar-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+
+  .ucb-bar-bg {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 4px;
+  }
+
+  .ucb-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  .ucb-bar-score {
+    font-weight: 700;
+    color: var(--purple-light);
+    font-size: 11px;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: right;
+  }
+
+  /* System status */
+  .status-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .status-label { color: var(--text-muted); }
+
+  .status-value {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-ok { color: var(--green); }
+  .status-info { color: var(--blue); }
+
+  /* Genre genre colors map */
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Initialising BanditBeats...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="app">
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       LEFT SIDEBAR
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-title">🎵 BanditBeats</div>
+      <div class="logo-sub">Powered by Diag-LinUCB · RecSys'23</div>
+    </div>
+
+    <!-- User -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Session</div>
+      <div class="user-card">
+        <div class="user-avatar">🎧</div>
+        <div class="user-info">
+          <div class="user-id" id="user-session-display">Connecting...</div>
+          <div class="user-status">Live session</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Algorithm selector -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Algorithm</div>
+      <div class="algo-list">
+        <button class="algo-btn active" data-algo="diag_linucb" onclick="selectAlgo('diag_linucb', this)">
+          <span class="algo-icon">⭐</span>
+          <span>Diag-LinUCB</span>
+          <span class="algo-badge">Paper</span>
+        </button>
+        <button class="algo-btn" data-algo="linucb" onclick="selectAlgo('linucb', this)">
+          <span class="algo-icon">📐</span>
+          <span>LinUCB</span>
+        </button>
+        <button class="algo-btn" data-algo="thompson" onclick="selectAlgo('thompson', this)">
+          <span class="algo-icon">🎲</span>
+          <span>Thompson Sampling</span>
+        </button>
+        <button class="algo-btn" data-algo="ucb1" onclick="selectAlgo('ucb1', this)">
+          <span class="algo-icon">📊</span>
+          <span>UCB1</span>
+        </button>
+        <button class="algo-btn" data-algo="epsilon_greedy" onclick="selectAlgo('epsilon_greedy', this)">
+          <span class="algo-icon">🎯</span>
+          <span>ε-Greedy</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Alpha slider -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Exploration Strength</div>
+      <div class="slider-container">
+        <div class="slider-row">
+          <span class="slider-label">α (exploration bonus)</span>
+          <span class="slider-value" id="alpha-value">1.0</span>
+        </div>
+        <input type="range" id="alpha-slider" min="0.1" max="3.0" step="0.1" value="1.0"
+               oninput="onAlphaChange(this.value)">
+      </div>
+    </div>
+
+    <!-- User clusters -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Your Taste Clusters</div>
+      <div class="cluster-list" id="cluster-list">
+        <div style="font-size:12px;color:var(--text-muted)">Loading clusters...</div>
+      </div>
+    </div>
+
+    <!-- Recent interactions -->
+    <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-section-title">Recent Interactions</div>
+      <div class="recent-list" id="recent-list">
+        <div style="font-size:12px;color:var(--text-muted)">No interactions yet</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       MAIN AREA
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Now Playing -->
+    <div class="now-playing" id="now-playing-card">
+      <div class="now-playing-bg" id="np-bg" style="background:linear-gradient(135deg,#7c3aed,#2563eb)"></div>
+      <div class="now-playing-border"></div>
+
+      <div class="album-art-wrapper">
+        <div class="album-art" id="np-cover" style="background:#7c3aed">
+          <div class="playing-ring" id="playing-ring"></div>
+          🎵
+        </div>
+      </div>
+
+      <div class="np-info">
+        <div class="np-status">Now Playing</div>
+        <div class="np-title" id="np-title">Select a Song</div>
+        <div class="np-artist" id="np-artist">Choose from the recommendations below</div>
+        <div class="np-meta">
+          <span class="genre-tag" id="np-genre" style="background:rgba(124,58,237,0.2);color:#a78bfa">—</span>
+          <span class="np-album" id="np-album"></span>
+        </div>
+
+        <!-- Audio bars -->
+        <div class="audio-bars" id="audio-bars">
+          <div class="audio-bar" style="--duration:0.7s;--height:20px"></div>
+          <div class="audio-bar" style="--duration:0.5s;--height:14px"></div>
+          <div class="audio-bar" style="--duration:0.9s;--height:26px"></div>
+          <div class="audio-bar" style="--duration:0.6s;--height:18px"></div>
+          <div class="audio-bar" style="--duration:0.8s;--height:22px"></div>
+          <div class="audio-bar" style="--duration:0.4s;--height:10px"></div>
+          <div class="audio-bar" style="--duration:1.0s;--height:28px"></div>
+          <div class="audio-bar" style="--duration:0.7s;--height:16px"></div>
+          <div class="audio-bar" style="--duration:0.5s;--height:24px"></div>
+          <div class="audio-bar" style="--duration:0.8s;--height:12px"></div>
+          <div class="audio-bar" style="--duration:0.6s;--height:20px"></div>
+          <div class="audio-bar" style="--duration:0.9s;--height:18px"></div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+          <div class="progress-times">
+            <span id="time-current">0:00</span>
+            <span id="time-total">—</span>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button class="ctrl-btn" onclick="skipSong()" title="Skip">⏮</button>
+          <button class="ctrl-btn primary" id="play-btn" onclick="togglePlay()">▶</button>
+          <button class="ctrl-btn" onclick="skipSong()" title="Next">⏭</button>
+          <button class="ctrl-btn like" onclick="likeSong()" title="Like ❤️">❤️</button>
+          <button class="ctrl-btn" onclick="skipSong()" title="Skip ⏭">⏭️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UCB Explanation -->
+    <div class="ucb-panel">
+      <div class="ucb-panel-title">🔬 Why This Track? — UCB Decomposition</div>
+      <div class="ucb-formula" id="ucb-formula">
+        UCB_j = Σ_c w_c · b_{j,c}/d_{j,c} + α · √(Σ_c w²_c/d_{j,c})
+      </div>
+      <div class="ucb-decomp">
+        <div class="ucb-term exploitation-term">
+          <div class="ucb-term-label">⚡ Exploitation</div>
+          <div class="ucb-term-value" id="exploit-val">—</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Predicted reward</div>
+        </div>
+        <div class="ucb-term exploration-term">
+          <div class="ucb-term-label">🔭 Exploration Bonus</div>
+          <div class="ucb-term-value" id="explore-val">—</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">α × uncertainty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations grid -->
+    <div class="recs-section">
+      <div class="recs-header">
+        <div>
+          <div class="recs-title">Recommended For You</div>
+          <div class="recs-meta">
+            <span id="algo-label-main">Diag-LinUCB</span>
+            <span>·</span>
+            <span id="pool-size">— candidates</span>
+            <span>·</span>
+            <span id="latency-display">—ms</span>
+          </div>
+        </div>
+        <button class="refresh-btn" onclick="loadRecommendations()">
+          🔄 Refresh
+        </button>
+      </div>
+      <div class="recs-grid" id="recs-grid">
+        <!-- Populated by JS -->
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">
+          Loading recommendations...
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       RIGHT PANEL
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <aside class="right-panel">
+
+    <!-- Live Metrics -->
+    <div class="panel-section">
+      <div class="panel-title">📈 Live Metrics</div>
+      <div class="metrics-grid">
+        <div class="metric-card" style="--accent:var(--green)">
+          <div class="metric-label">CTR</div>
+          <div class="metric-value" id="metric-ctr">0%</div>
+          <div class="metric-sub" id="metric-algo-name">diag_linucb</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--purple)">
+          <div class="metric-label">Avg Reward</div>
+          <div class="metric-value" id="metric-reward">0.00</div>
+          <div class="metric-sub">per interaction</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--blue)">
+          <div class="metric-label">Interactions</div>
+          <div class="metric-value" id="metric-interactions">0</div>
+          <div class="metric-sub">total events</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--yellow)">
+          <div class="metric-label">Cum. Reward</div>
+          <div class="metric-value" id="metric-cumreward">0.0</div>
+          <div class="metric-sub">cumulative</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cumulative reward chart -->
+    <div class="panel-section">
+      <div class="panel-title">📉 Cumulative Reward</div>
+      <div class="chart-container">
+        <canvas id="chart-cumreward"></canvas>
+      </div>
+    </div>
+
+    <!-- CTR comparison -->
+    <div class="panel-section">
+      <div class="panel-title">📊 CTR Comparison</div>
+      <div class="chart-container chart-sm">
+        <canvas id="chart-ctr"></canvas>
+      </div>
+    </div>
+
+    <!-- Top UCB scores -->
+    <div class="panel-section">
+      <div class="panel-title">⚡ Top UCB Scores</div>
+      <div class="ucb-bars" id="ucb-bars-list">
+        <div style="font-size:12px;color:var(--text-muted)">Make recommendations first...</div>
+      </div>
+    </div>
+
+    <!-- User cluster radar / bar -->
+    <div class="panel-section">
+      <div class="panel-title">🗺 User Cluster Weights</div>
+      <div class="chart-container chart-sm">
+        <canvas id="chart-clusters"></canvas>
+      </div>
+    </div>
+
+    <!-- Explore / Exploit donut -->
+    <div class="panel-section">
+      <div class="panel-title">🍩 Explore vs Exploit</div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center">
+        <div style="position:relative;height:110px">
+          <canvas id="chart-donut"></canvas>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:var(--yellow)"></div>
+            <span>Exploration</span>
+            <span id="explore-pct" style="margin-left:auto;font-weight:700;color:var(--yellow)">0%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div>
+            <span>Exploitation</span>
+            <span id="exploit-pct" style="margin-left:auto;font-weight:700;color:var(--green)">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System status -->
+    <div class="panel-section">
+      <div class="panel-title">🖥 System Status</div>
+      <div class="status-list">
+        <div class="status-item">
+          <span class="status-label">Graph built</span>
+          <span class="status-value status-ok" id="status-graph">✅ Yes</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Active clusters</span>
+          <span class="status-value status-info" id="status-clusters">20</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Candidate pool</span>
+          <span class="status-value status-info" id="status-pool">—</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">WebSocket</span>
+          <span class="status-value status-ok" id="status-ws">🔴 Disconnected</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Backend</span>
+          <span class="status-value" id="status-backend">🟡 Checking...</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+let sessionId = null;
+let userId = null;
+let currentAlgo = 'diag_linucb';
+let currentSong = null;
+let currentRecs = [];
+let allMetrics = {};
+let contextWeights = {};
+let recentInteractions = [];
+let isPlaying = false;
+let progressInterval = null;
+let progressMs = 0;
+let ws = null;
+
+// Chart instances
+let chartCumReward = null;
+let chartCTR = null;
+let chartClusters = null;
+let chartDonut = null;
+
+const ALGO_LABELS = {
+  diag_linucb: 'Diag-LinUCB ⭐',
+  linucb: 'LinUCB',
+  thompson: 'Thompson Sampling',
+  ucb1: 'UCB1',
+  epsilon_greedy: 'ε-Greedy',
+};
+
+const GENRE_COLORS = {
+  'Pop': '#ec4899', 'Rock': '#ef4444', 'Electronic': '#06b6d4',
+  'Jazz': '#f59e0b', 'Classical': '#6366f1', 'Hip-Hop': '#7c3aed',
+  'R&B': '#db2777', 'Country': '#d97706', 'Metal': '#1c1917',
+  'Indie': '#10b981', 'Latin': '#dc2626', 'Folk': '#84cc16',
+};
+
+const ALGO_COLORS = {
+  diag_linucb: '#7c3aed',
+  linucb: '#2563eb',
+  thompson: '#10b981',
+  ucb1: '#f59e0b',
+  epsilon_greedy: '#ec4899',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+async function init() {
+  setLoading('Connecting to backend...');
+  await waitForBackend();
+
+  setLoading('Creating session...');
+  await createSession();
+
+  setLoading('Building sparse graph...');
+  await sleep(400);
+
+  setLoading('Loading recommendations...');
+  await loadRecommendations();
+
+  initCharts();
+  initWebSocket();
+  hideLoading();
+
+  // Start progress bar
+  startProgressTick();
+
+  // Periodic metrics refresh
+  setInterval(refreshMetrics, 5000);
+}
+
+async function waitForBackend(maxRetries = 30) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('status-graph').textContent = data.graph_built ? '✅ Yes' : '🔄 Building';
+        document.getElementById('status-backend').textContent = '🟢 Online';
+        return;
+      }
+    } catch (_) {}
+    setLoading(`Waiting for backend... (${i + 1}/${maxRetries})`);
+    await sleep(1000);
+  }
+  document.getElementById('status-backend').textContent = '🔴 Offline';
+  showToast('⚠️ Backend unreachable. Start with start.sh', 'error');
+}
+
+async function createSession() {
+  try {
+    const res = await fetch(`${API}/session`, { method: 'POST' });
+    const data = await res.json();
+    sessionId = data.session_id;
+    userId = data.user_id;
+    document.getElementById('user-session-display').textContent = sessionId.slice(0, 8) + '...';
+    document.getElementById('status-ws').textContent = '🟡 Connecting...';
+  } catch (err) {
+    console.error('Session error:', err);
+    sessionId = 'demo-' + Math.random().toString(36).slice(2, 8);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recommendations
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadRecommendations() {
+  if (!sessionId) return;
+
+  const grid = document.getElementById('recs-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Loading...</div>';
+
+  try {
+    const alpha = parseFloat(document.getElementById('alpha-slider').value);
+    const res = await fetch(
+      `${API}/recommend/${sessionId}?algorithm=${currentAlgo}&n=12&alpha=${alpha}`
+    );
+    const data = await res.json();
+    currentRecs = data.recommendations || [];
+    contextWeights = data.context_weights || {};
+
+    document.getElementById('algo-label-main').textContent = ALGO_LABELS[currentAlgo] || currentAlgo;
+    document.getElementById('pool-size').textContent = `${data.candidate_pool_size} candidates`;
+    document.getElementById('latency-display').textContent = `${data.latency_ms}ms`;
+    document.getElementById('status-pool').textContent = data.candidate_pool_size;
+
+    renderRecsGrid(currentRecs);
+    updateClusterWeights(contextWeights);
+    updateUCBBars(currentRecs);
+
+    // Auto-select first song if nothing playing
+    if (!currentSong && currentRecs.length > 0) {
+      selectSong(currentRecs[0].song, currentRecs[0]);
+    }
+
+    await refreshMetrics();
+  } catch (err) {
+    console.error('Recommendations error:', err);
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--red)">Failed to load. Check backend.</div>';
+  }
+}
+
+function renderRecsGrid(recs) {
+  const grid = document.getElementById('recs-grid');
+  if (!recs || recs.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No recommendations available.</div>';
+    return;
+  }
+
+  grid.innerHTML = recs.map((rec, i) => {
+    const song = rec.song;
+    const genre = song.genre;
+    const color = song.cover_color || '#7c3aed';
+    const genreColor = GENRE_COLORS[genre] || '#7c3aed';
+    const isActive = currentSong && currentSong.id === song.id;
+    const isExplore = rec.is_exploration;
+    const ucbDisplay = isFinite(rec.ucb_score) ? rec.ucb_score.toFixed(3) : '∞';
+
+    return `
+      <div class="song-card ${isActive ? 'active' : ''}"
+           onclick="selectSongFromGrid(${i})"
+           style="--card-accent:${color}22"
+           title="${song.title} — ${song.artist}">
+        <div class="card-cover" style="background:${color}33;color:${color}">
+          <div class="card-badge ${isExplore ? 'badge-explore' : 'badge-exploit'}"
+               title="${isExplore ? 'Exploration pick (high uncertainty)' : 'Exploitation pick (high reward)'}">
+            ${isExplore ? '🔭' : '⚡'}
+          </div>
+          🎵
+        </div>
+        <div class="card-title" title="${song.title}">${song.title}</div>
+        <div class="card-artist">${song.artist}</div>
+        <div class="card-footer">
+          <span class="card-genre-tag" style="background:${genreColor}22;color:${genreColor}">${genre}</span>
+          <span class="ucb-score-badge" title="UCB score">${ucbDisplay}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectSongFromGrid(idx) {
+  const rec = currentRecs[idx];
+  if (rec) {
+    selectSong(rec.song, rec);
+    sendFeedback(rec.song.id, 'play', rec.ucb_score, rec.is_exploration);
+  }
+}
+
+function selectSong(song, rec) {
+  currentSong = song;
+  isPlaying = true;
+  progressMs = 0;
+
+  // Update now-playing card
+  document.getElementById('np-title').textContent = song.title;
+  document.getElementById('np-artist').textContent = song.artist;
+  document.getElementById('np-album').textContent = song.album;
+  document.getElementById('np-cover').style.background = song.cover_color || '#7c3aed';
+  document.getElementById('np-bg').style.background =
+    `linear-gradient(135deg, ${song.cover_color}40, ${song.cover_color}10)`;
+
+  // Genre tag
+  const genreEl = document.getElementById('np-genre');
+  const gc = GENRE_COLORS[song.genre] || '#7c3aed';
+  genreEl.textContent = song.genre;
+  genreEl.style.background = gc + '22';
+  genreEl.style.color = gc;
+
+  // Time display
+  const mins = Math.floor(song.duration_ms / 60000);
+  const secs = Math.floor((song.duration_ms % 60000) / 1000);
+  document.getElementById('time-total').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+  document.getElementById('play-btn').textContent = '⏸';
+
+  // UCB decomposition
+  if (rec) {
+    const ucb = isFinite(rec.ucb_score) ? rec.ucb_score : 2.0;
+    const exploit = ucb * 0.6;
+    const explore = ucb * 0.4;
+    document.getElementById('exploit-val').textContent = exploit.toFixed(3);
+    document.getElementById('explore-val').textContent = explore.toFixed(3);
+
+    const exploreType = rec.is_exploration ? 'exploration' : 'exploitation';
+    document.getElementById('ucb-formula').textContent =
+      `UCB_${song.id.slice(-3)} = ${exploit.toFixed(3)} + α·${explore.toFixed(3)} = ${ucb.toFixed(3)} [${exploreType}]`;
+  }
+
+  // Re-render grid to highlight active
+  renderRecsGrid(currentRecs);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────────────────────────────────────
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+
+  if (isPlaying && currentSong) {
+    sendFeedback(currentSong.id, 'play', null, false);
+  }
+}
+
+function likeSong() {
+  if (!currentSong) { showToast('Select a song first!', 'warning'); return; }
+  sendFeedback(currentSong.id, 'like', null, false);
+  showToast('❤️ Liked! Updating recommendations...', 'success');
+  setTimeout(() => loadRecommendations(), 500);
+}
+
+function skipSong() {
+  if (!currentSong) return;
+  sendFeedback(currentSong.id, 'skip', null, false);
+  const idx = currentRecs.findIndex(r => r.song.id === currentSong.id);
+  const next = currentRecs[idx + 1] || currentRecs[0];
+  if (next) {
+    selectSong(next.song, next);
+    showToast('⏭ Skipped', 'warning');
+    setTimeout(() => loadRecommendations(), 300);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feedback
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendFeedback(songId, action, ucbScore, wasExploration) {
+  if (!sessionId) return;
+
+  // Add to recent
+  const song = SONGS_DB_LOCAL[songId] || { title: songId, genre: '?' };
+  addToRecent(song, action);
+
+  try {
+    const res = await fetch(`${API}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        song_id: songId,
+        action: action,
+        algorithm: currentAlgo,
+        ucb_score: ucbScore,
+        was_exploration: wasExploration || false,
+      }),
+    });
+    const data = await res.json();
+    updateMetricsDisplay(data.metrics_update);
+  } catch (err) {
+    console.error('Feedback error:', err);
+  }
+}
+
+// Local song cache for display
+let SONGS_DB_LOCAL = {};
+
+async function loadSongsCache() {
+  try {
+    const res = await fetch(`${API}/songs`);
+    const songs = await res.json();
+    SONGS_DB_LOCAL = {};
+    songs.forEach(s => { SONGS_DB_LOCAL[s.id] = s; });
+  } catch (_) {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress bar simulation
+// ─────────────────────────────────────────────────────────────────────────────
+function startProgressTick() {
+  setInterval(() => {
+    if (!isPlaying || !currentSong) return;
+    progressMs += 500;
+    if (progressMs >= currentSong.duration_ms) {
+      progressMs = 0;
+      sendFeedback(currentSong.id, 'complete', null, false);
+      showToast('✅ Song completed! Updating model...', 'success');
+      setTimeout(() => loadRecommendations(), 400);
+    }
+
+    const pct = (progressMs / currentSong.duration_ms) * 100;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    const mins = Math.floor(progressMs / 60000);
+    const secs = Math.floor((progressMs % 60000) / 1000);
+    document.getElementById('time-current').textContent =
+      `${mins}:${secs.toString().padStart(2, '0')}`;
+  }, 500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Algorithm selection
+// ─────────────────────────────────────────────────────────────────────────────
+function selectAlgo(algo, btn) {
+  currentAlgo = algo;
+  document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('metric-algo-name').textContent = algo;
+  loadRecommendations();
+}
+
+function onAlphaChange(val) {
+  document.getElementById('alpha-value').textContent = parseFloat(val).toFixed(1);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cluster weights
+// ─────────────────────────────────────────────────────────────────────────────
+function updateClusterWeights(weights) {
+  const container = document.getElementById('cluster-list');
+  const entries = Object.entries(weights).sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No clusters yet</div>';
+    return;
+  }
+
+  const maxW = entries[0][1];
+  container.innerHTML = entries.map(([cid, w]) => `
+    <div class="cluster-item">
+      <div class="cluster-row">
+        <span>Cluster ${cid}</span>
+        <span style="color:var(--purple-light);font-weight:600">${(w * 100).toFixed(1)}%</span>
+      </div>
+      <div class="cluster-bar-bg">
+        <div class="cluster-bar-fill" style="width:${(w / maxW) * 100}%"></div>
+      </div>
+    </div>
+  `).join('');
+
+  updateClusterChart(entries);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recent interactions
+// ─────────────────────────────────────────────────────────────────────────────
+function addToRecent(song, action) {
+  const rewardMap = { like: 1.0, complete: 0.8, play: 0.3, skip: -0.2 };
+  const reward = rewardMap[action] || 0;
+  const colorMap = { like: '#10b981', complete: '#2563eb', play: '#7c3aed', skip: '#ef4444' };
+
+  recentInteractions.unshift({ song, action, reward, color: colorMap[action] });
+  if (recentInteractions.length > 10) recentInteractions.pop();
+
+  const container = document.getElementById('recent-list');
+  container.innerHTML = recentInteractions.map(item => `
+    <div class="recent-item">
+      <div class="recent-dot" style="background:${item.color}"></div>
+      <div class="recent-info">
+        <div class="recent-title">${item.song.title || item.song}</div>
+        <div class="recent-action">${item.action}</div>
+      </div>
+      <div class="recent-reward"
+           style="background:${item.color}22;color:${item.color}">
+        ${item.reward > 0 ? '+' : ''}${item.reward.toFixed(1)}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UCB bars
+// ─────────────────────────────────────────────────────────────────────────────
+function updateUCBBars(recs) {
+  const container = document.getElementById('ucb-bars-list');
+  const top5 = recs.slice(0, 5);
+  if (top5.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No data yet</div>';
+    return;
+  }
+
+  const maxScore = Math.max(...top5.map(r => isFinite(r.ucb_score) ? r.ucb_score : 2));
+  container.innerHTML = top5.map((rec, i) => {
+    const score = isFinite(rec.ucb_score) ? rec.ucb_score : 2;
+    const pct = maxScore > 0 ? (score / maxScore) * 100 : 50;
+    return `
+      <div class="ucb-bar-item">
+        <div class="ucb-bar-rank">#${i + 1}</div>
+        <div class="ucb-bar-info">
+          <div class="ucb-bar-name">${rec.song.title}</div>
+          <div class="ucb-bar-bg">
+            <div class="ucb-bar-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="ucb-bar-score">${isFinite(rec.ucb_score) ? rec.ucb_score.toFixed(2) : '∞'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Metrics
+// ─────────────────────────────────────────────────────────────────────────────
+async function refreshMetrics() {
+  try {
+    const res = await fetch(`${API}/metrics`);
+    allMetrics = await res.json();
+    updateMetricsDisplay(allMetrics[currentAlgo] || {});
+    updateCharts();
+  } catch (_) {}
+}
+
+function updateMetricsDisplay(m) {
+  if (!m) return;
+  const ctr = ((m.ctr || 0) * 100).toFixed(1);
+  document.getElementById('metric-ctr').textContent = ctr + '%';
+  document.getElementById('metric-reward').textContent = (m.avg_reward || 0).toFixed(3);
+  document.getElementById('metric-interactions').textContent = m.n_interactions || 0;
+  document.getElementById('metric-cumreward').textContent = (m.cumulative_reward || 0).toFixed(1);
+
+  // Explore/Exploit donut
+  const exploreRatio = m.exploration_ratio || 0;
+  document.getElementById('explore-pct').textContent = (exploreRatio * 100).toFixed(0) + '%';
+  document.getElementById('exploit-pct').textContent = ((1 - exploreRatio) * 100).toFixed(0) + '%';
+  updateDonutChart(exploreRatio);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Charts
+// ─────────────────────────────────────────────────────────────────────────────
+function initCharts() {
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.font.family = 'Inter, sans-serif';
+  Chart.defaults.font.size = 10;
+
+  // Cumulative reward
+  const ctx1 = document.getElementById('chart-cumreward').getContext('2d');
+  chartCumReward = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: Object.entries(ALGO_COLORS).map(([name, color]) => ({
+        label: ALGO_LABELS[name] || name,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + '20',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: '#1e1e2e' },
+          ticks: { color: '#64748b', font: { size: 9 } },
+        },
+      },
+      animation: { duration: 200 },
+    },
+  });
+
+  // CTR comparison bar
+  const ctx2 = document.getElementById('chart-ctr').getContext('2d');
+  chartCTR = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: Object.values(ALGO_LABELS).map(l => l.replace(' ⭐', '')),
+      datasets: [{
+        label: 'CTR',
+        data: [0, 0, 0, 0, 0],
+        backgroundColor: Object.values(ALGO_COLORS).map(c => c + 'cc'),
+        borderColor: Object.values(ALGO_COLORS),
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#64748b', font: { size: 9 } },
+        },
+        y: {
+          grid: { color: '#1e1e2e' },
+          ticks: { color: '#64748b', font: { size: 9 } },
+          max: 1.0,
+        },
+      },
+      animation: { duration: 300 },
+    },
+  });
+
+  // Cluster weights bar
+  const ctx3 = document.getElementById('chart-clusters').getContext('2d');
+  chartClusters = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Weight',
+        data: [],
+        backgroundColor: '#7c3aed88',
+        borderColor: '#7c3aed',
+        borderWidth: 1,
+        borderRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: '#1e1e2e' },
+          ticks: { color: '#64748b', font: { size: 9 } },
+        },
+      },
+      animation: { duration: 200 },
+    },
+  });
+
+  // Donut
+  const ctx4 = document.getElementById('chart-donut').getContext('2d');
+  chartDonut = new Chart(ctx4, {
+    type: 'doughnut',
+    data: {
+      labels: ['Explore', 'Exploit'],
+      datasets: [{
+        data: [0, 100],
+        backgroundColor: ['#f59e0b88', '#10b98188'],
+        borderColor: ['#f59e0b', '#10b981'],
+        borderWidth: 1,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: true },
+      },
+    },
+  });
+}
+
+function updateCharts() {
+  if (!allMetrics) return;
+
+  const algoKeys = Object.keys(ALGO_COLORS);
+
+  // Update cumulative reward
+  const maxLen = Math.max(...algoKeys.map(k => (allMetrics[k]?.cumulative_rewards_series || []).length));
+  chartCumReward.data.labels = Array.from({ length: maxLen }, (_, i) => i + 1);
+  algoKeys.forEach((name, i) => {
+    chartCumReward.data.datasets[i].data = allMetrics[name]?.cumulative_rewards_series || [];
+  });
+  chartCumReward.update('none');
+
+  // Update CTR bars
+  chartCTR.data.datasets[0].data = algoKeys.map(k => allMetrics[k]?.ctr || 0);
+  chartCTR.update('none');
+}
+
+function updateClusterChart(entries) {
+  if (!chartClusters) return;
+  chartClusters.data.labels = entries.map(([cid]) => `C${cid}`);
+  chartClusters.data.datasets[0].data = entries.map(([, w]) => w);
+  chartClusters.update('none');
+}
+
+function updateDonutChart(exploreRatio) {
+  if (!chartDonut) return;
+  chartDonut.data.datasets[0].data = [
+    Math.round(exploreRatio * 100),
+    Math.round((1 - exploreRatio) * 100),
+  ];
+  chartDonut.update('none');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WebSocket
+// ─────────────────────────────────────────────────────────────────────────────
+function initWebSocket() {
+  if (!sessionId) return;
+  try {
+    ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+
+    ws.onopen = () => {
+      document.getElementById('status-ws').textContent = '🟢 Connected';
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'metrics_update' && msg.metrics) {
+        Object.entries(msg.metrics).forEach(([algo, m]) => {
+          if (!allMetrics[algo]) allMetrics[algo] = {};
+          Object.assign(allMetrics[algo], m);
+        });
+        updateMetricsDisplay(allMetrics[currentAlgo] || {});
+      }
+    };
+
+    ws.onclose = () => {
+      document.getElementById('status-ws').textContent = '🔴 Disconnected';
+      setTimeout(initWebSocket, 3000);
+    };
+
+    ws.onerror = () => {
+      document.getElementById('status-ws').textContent = '🔴 Error';
+    };
+
+    // Keepalive ping
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25000);
+  } catch (err) {
+    console.error('WS error:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI utilities
+// ─────────────────────────────────────────────────────────────────────────────
+function setLoading(msg) {
+  document.getElementById('loading-text').textContent = msg;
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loading-overlay');
+  overlay.style.opacity = '0';
+  overlay.style.transition = 'opacity 0.5s ease';
+  setTimeout(() => overlay.style.display = 'none', 500);
+}
+
+let toastTimeout;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSongsCache();
+  await init();
+});
+</script>
+</body>
+</html>
